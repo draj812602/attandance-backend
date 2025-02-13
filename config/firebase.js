@@ -4,12 +4,6 @@ const dotenv = require("dotenv");
 // Load environment variables
 dotenv.config();
 
-// Fix private key formatting (Remove extra spaces or escape sequences)
-const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(
-  /\\n/g,
-  "\n"
-).trim();
-
 const serviceAccount = {
   type: "service_account",
   project_id: process.env.FIREBASE_PROJECT_ID,
