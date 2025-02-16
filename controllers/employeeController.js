@@ -34,6 +34,8 @@ exports.saveEmployee = async (req, res) => {
 exports.getEmployee = async (req, res) => {
   try {
     const { empID } = req.query;
+    console.log(empID);
+
     if (!empID) {
       return res.status(400).json({ error: "Employee ID is required" });
     }
