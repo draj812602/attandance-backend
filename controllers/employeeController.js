@@ -28,12 +28,29 @@ exports.saveEmployee = async (req, res) => {
   }
 };
 
-// ✅ Fetch Employee from Firestore
+// ✅ Fetch Employee from Firestore (Missing in Your Code)
+exports.getEmployee = async (req, res) => {
+  try {
+    const { empID } = req.query;
+    if (!empID) {
+      return res.status(400).json({ error: "Employee ID is required" });
+    }
+
+    const employeeDoc = await db.collection("employees").doc(empID).get();
+    if (!employeeDoc.exists) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+
+    res.json(employeeDoc.data());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ✅ Fetch Attendance Records for Employee (Correct Placement)
 exports.getAttendance = async (req, res) => {
   try {
     const { empID } = req.query;
-    console.log("req made here");
-
     if (!empID) {
       return res.status(400).json({ error: "Employee ID is required" });
     }
