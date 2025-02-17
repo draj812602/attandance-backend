@@ -10,13 +10,11 @@ exports.saveEmployee = async (req, res) => {
         .json({ error: "Employee ID and Name are required" });
     }
 
-    // Determine current quarter
     const now = new Date();
     const quarter = `Q${Math.ceil(
       (now.getMonth() + 1) / 3
     )}-${now.getFullYear()}`;
 
-    // Save employee details
     await db.collection("employees").doc(empID).set({
       empID,
       empName,
@@ -34,8 +32,6 @@ exports.saveEmployee = async (req, res) => {
 exports.getEmployee = async (req, res) => {
   try {
     const { empID } = req.query;
-    console.log(empID);
-
     if (!empID) {
       return res.status(400).json({ error: "Employee ID is required" });
     }
@@ -51,7 +47,7 @@ exports.getEmployee = async (req, res) => {
   }
 };
 
-// ✅ Mark Attendance in Firestore
+// ✅ Mark Attendance in Firestore (Prevent Duplicate Entries)
 exports.markAttendance = async (req, res) => {
   try {
     const { empID } = req.body;
@@ -59,7 +55,6 @@ exports.markAttendance = async (req, res) => {
       return res.status(400).json({ error: "Employee ID is required" });
     }
 
-    // Get employee details
     const employeeDoc = await db.collection("employees").doc(empID).get();
     if (!employeeDoc.exists) {
       return res.status(404).json({ error: "Employee not found" });
@@ -67,14 +62,26 @@ exports.markAttendance = async (req, res) => {
 
     const empData = employeeDoc.data();
     const now = new Date();
+    const today = now.toISOString().split("T")[0];
+
+    const attendanceQuery = await db
+      .collection("attendance")
+      .where("empID", "==", empID)
+      .where("date", "==", today)
+      .get();
+
+    if (!attendanceQuery.empty) {
+      return res.json({ message: "Attendance already marked for today" });
+    }
+
     const attendanceEntry = {
       empID,
       empName: empData.empName,
       timestamp: now.toISOString(),
+      date: today,
       quarter: empData.quarter,
     };
 
-    // Store attendance in Firestore
     await db.collection("attendance").add(attendanceEntry);
 
     res.json({
@@ -84,4 +91,12 @@ exports.markAttendance = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+};
+
+// ✅ Verify if IP is from Office Network
+exports.verifyOfficeIP = (req, res) => {
+  const officeIPs = ["192.168.105.233", "10.21.39.254"]; // Example Office IPs
+  const userIP = req.query.ip;
+  const isOffice = officeIPs.includes(userIP);
+  res.json({ isOffice });
 };
