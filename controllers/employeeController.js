@@ -29,19 +29,28 @@ exports.saveEmployee = async (req, res) => {
 };
 
 // ✅ Fetch Employee from Firestore
-exports.getEmployee = async (req, res) => {
+exports.getAttendance = async (req, res) => {
   try {
     const { empID } = req.query;
+    console.log("req made here");
+
     if (!empID) {
       return res.status(400).json({ error: "Employee ID is required" });
     }
 
-    const employeeDoc = await db.collection("employees").doc(empID).get();
-    if (!employeeDoc.exists) {
-      return res.status(404).json({ error: "Employee not found" });
+    const attendanceSnapshot = await db
+      .collection("attendance")
+      .where("empID", "==", empID)
+      .orderBy("timestamp", "desc")
+      .get();
+
+    if (attendanceSnapshot.empty) {
+      return res.json([]);
     }
 
-    res.json(employeeDoc.data());
+    const records = attendanceSnapshot.docs.map((doc) => doc.data());
+
+    res.json(records);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
