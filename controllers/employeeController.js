@@ -95,7 +95,7 @@ exports.markAttendance = async (req, res) => {
 
 // ✅ Verify if IP is from Office Network
 exports.verifyOfficeIP = (req, res) => {
-  const officeIPs = ["192.168.105.233", "10.21.39.254"]; // Example Office IPs
+  const officeIPs = ["192.168.105.233", "10.21.39.254"]; // Office Gateway IPs
   const userIP = req.query.ip;
   const isOffice = officeIPs.includes(userIP);
   res.json({ isOffice });
