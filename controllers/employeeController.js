@@ -28,15 +28,20 @@ exports.saveEmployee = async (req, res) => {
   }
 };
 
-// ✅ Fetch Employee from Firestore (Missing in Your Code)
+// ✅ Fetch Employee from Firestore
 exports.getEmployee = async (req, res) => {
   try {
     const { empID } = req.query;
+    console.log("empID getEmp");
+
+    console.log(empID);
+
     if (!empID) {
       return res.status(400).json({ error: "Employee ID is required" });
     }
 
     const employeeDoc = await db.collection("employees").doc(empID).get();
+
     if (!employeeDoc.exists) {
       return res.status(404).json({ error: "Employee not found" });
     }
@@ -47,10 +52,11 @@ exports.getEmployee = async (req, res) => {
   }
 };
 
-//Fetch Attendance Records for Employee (Correct Placement)
+// ✅ Fetch Attendance (Full Quarter) - Includes Present & Absent
 exports.getAttendance = async (req, res) => {
   try {
     const { empID } = req.query;
+    console.log("empID get attandance");
     if (!empID) {
       return res.status(400).json({ error: "Employee ID is required" });
     }
@@ -63,7 +69,7 @@ exports.getAttendance = async (req, res) => {
       1
     );
 
-    // Fetch present attendance from Firestore
+    // Fetch attendance records from Firestore
     const attendanceSnapshot = await db
       .collection("attendance")
       .where("empID", "==", empID)
@@ -74,7 +80,7 @@ exports.getAttendance = async (req, res) => {
     let presentDates = new Set(presentRecords.map((record) => record.date));
 
     let attendanceRecords = [];
-    let totalAttendance = 0;
+    let totalAttendance = presentRecords.length;
     let dateTracker = new Date(quarterStartDate);
 
     while (dateTracker <= today) {
@@ -86,7 +92,6 @@ exports.getAttendance = async (req, res) => {
           time: new Date(record.timestamp).toLocaleTimeString(),
           status: "Present",
         });
-        totalAttendance += 1;
       } else {
         attendanceRecords.push({
           date: dateStr,
@@ -99,11 +104,13 @@ exports.getAttendance = async (req, res) => {
 
     res.json({ attendanceRecords, totalAttendance });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", details: error.message });
   }
 };
 
-// Mark Attendance in Firestore (Prevent Duplicate Entries)
+// ✅ Mark Attendance in Firestore (Prevent Duplicate Entries)
 exports.markAttendance = async (req, res) => {
   try {
     const { empID } = req.body;
@@ -116,10 +123,10 @@ exports.markAttendance = async (req, res) => {
       return res.status(404).json({ error: "Employee not found" });
     }
 
-    const empData = employeeDoc.data();
     const now = new Date();
-    const today = now.toISOString().split("T")[0];
+    const today = now.toISOString().split("T")[0]; // Get today's date in YYYY-MM-DD format
 
+    // **Check if attendance is already marked for today**
     const attendanceQuery = await db
       .collection("attendance")
       .where("empID", "==", empID)
@@ -132,10 +139,10 @@ exports.markAttendance = async (req, res) => {
 
     const attendanceEntry = {
       empID,
-      empName: empData.empName,
+      empName: employeeDoc.data().empName || "Unknown",
       timestamp: now.toISOString(),
-      date: today,
-      quarter: empData.quarter,
+      date: today, // **Ensure correct date format**
+      quarter: `Q${Math.ceil((now.getMonth() + 1) / 3)}-${now.getFullYear()}`,
     };
 
     await db.collection("attendance").add(attendanceEntry);
@@ -145,13 +152,16 @@ exports.markAttendance = async (req, res) => {
       data: attendanceEntry,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error marking attendance:", error);
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", details: error.message });
   }
 };
 
 // ✅ Verify if IP is from Office Network
 exports.verifyOfficeIP = (req, res) => {
-  const officePublicIPs = ["182.76.164.162"]; // Add your office's public IP
+  const officePublicIPs = ["182.76.164.162"];
   const userIP = req.query.ip;
   const isOffice = officePublicIPs.includes(userIP);
   res.json({ isOffice });
