@@ -32,9 +32,6 @@ exports.saveEmployee = async (req, res) => {
 exports.getEmployee = async (req, res) => {
   try {
     const { empID } = req.query;
-    console.log("empID getEmp");
-
-    console.log(empID);
 
     if (!empID) {
       return res.status(400).json({ error: "Employee ID is required" });
@@ -56,20 +53,37 @@ exports.getEmployee = async (req, res) => {
 exports.getAttendance = async (req, res) => {
   try {
     const { empID } = req.query;
-    console.log("empID get attandance");
     if (!empID) {
       return res.status(400).json({ error: "Employee ID is required" });
     }
 
-    const today = new Date();
-    const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
-    const quarterStartDate = new Date(
-      today.getFullYear(),
-      quarterStartMonth,
-      1
-    );
+    // console.log(`Fetching attendance for Employee ID: ${empID}`);
 
-    // Fetch attendance records from Firestore
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // ✅ Ensure today is correctly compared
+
+    const year = today.getFullYear();
+    const month = today.getMonth();
+
+    // ✅ Correctly determine the start of the current quarter
+    let quarterStartMonth;
+    if (month >= 0 && month <= 2) {
+      quarterStartMonth = 0; // Q1: January 1
+    } else if (month >= 3 && month <= 5) {
+      quarterStartMonth = 3; // Q2: April 1
+    } else if (month >= 6 && month <= 8) {
+      quarterStartMonth = 6; // Q3: July 1
+    } else {
+      quarterStartMonth = 9; // Q4: October 1
+    }
+
+    const quarterStartDate = new Date(Date.UTC(year, quarterStartMonth, 1));
+    quarterStartDate.setUTCHours(0, 0, 0, 0); // ✅ Fix UTC mismatch
+
+    // console.log("Quarter Start Date:", quarterStartDate.toISOString());
+    // console.log("Today's Date (Fixed):", today.toISOString());
+
+    // ✅ Fetch attendance from Firestore (Only from quarter start to today)
     const attendanceSnapshot = await db
       .collection("attendance")
       .where("empID", "==", empID)
@@ -83,8 +97,13 @@ exports.getAttendance = async (req, res) => {
     let totalAttendance = presentRecords.length;
     let dateTracker = new Date(quarterStartDate);
 
-    while (dateTracker <= today) {
+    // ✅ Fix: Ensure the loop **includes today's date**
+    while (
+      dateTracker.toISOString().split("T")[0] <=
+      today.toISOString().split("T")[0]
+    ) {
       let dateStr = dateTracker.toISOString().split("T")[0];
+
       if (presentDates.has(dateStr)) {
         let record = presentRecords.find((r) => r.date === dateStr);
         attendanceRecords.push({
@@ -99,11 +118,14 @@ exports.getAttendance = async (req, res) => {
           status: "Absent",
         });
       }
-      dateTracker.setDate(dateTracker.getDate() + 1);
+
+      // ✅ Move to the next day correctly
+      dateTracker.setUTCDate(dateTracker.getUTCDate() + 1);
     }
 
     res.json({ attendanceRecords, totalAttendance });
   } catch (error) {
+    console.error("Error fetching attendance records:", error);
     res
       .status(500)
       .json({ error: "Internal Server Error", details: error.message });
