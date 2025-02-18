@@ -32,15 +32,18 @@ exports.saveEmployee = async (req, res) => {
 exports.getEmployee = async (req, res) => {
   try {
     const { empID } = req.query;
-
     if (!empID) {
       return res.status(400).json({ error: "Employee ID is required" });
     }
 
-    const employeeDoc = await db.collection("employees").doc(empID).get();
+    const employeeRef = db.collection("employees").doc(empID);
+    const employeeDoc = await employeeRef.get();
 
+    // ✅ If Employee Not Found, Return Prompt to Re-Register
     if (!employeeDoc.exists) {
-      return res.status(404).json({ error: "Employee not found" });
+      return res.status(404).json({
+        error: "Employee not found. Please register again.",
+      });
     }
 
     res.json(employeeDoc.data());
@@ -140,17 +143,29 @@ exports.markAttendance = async (req, res) => {
       return res.status(400).json({ error: "Employee ID is required" });
     }
 
-    const employeeDoc = await db.collection("employees").doc(empID).get();
+    const employeeRef = db.collection("employees").doc(empID);
+    const employeeDoc = await employeeRef.get();
+
+    // ✅ If Employee is Missing, Recreate the Employee Record
     if (!employeeDoc.exists) {
-      return res.status(404).json({ error: "Employee not found" });
+      console.log(`Employee ID ${empID} not found. Creating new employee...`);
+
+      await employeeRef.set({
+        empID,
+        empName: "Unknown", // Later update from UI if needed
+        createdAt: new Date(),
+      });
+
+      console.log(`New employee record created for ${empID}.`);
     }
 
     const now = new Date();
-    const today = now.toISOString().split("T")[0]; // Get today's date in YYYY-MM-DD format
+    const today = now.toISOString().split("T")[0];
 
-    // **Check if attendance is already marked for today**
-    const attendanceQuery = await db
-      .collection("attendance")
+    const attendanceRef = db.collection("attendance");
+
+    // ✅ Check if Attendance Collection Exists (Firestore Automatically Creates It)
+    const attendanceQuery = await attendanceRef
       .where("empID", "==", empID)
       .where("date", "==", today)
       .get();
@@ -161,13 +176,13 @@ exports.markAttendance = async (req, res) => {
 
     const attendanceEntry = {
       empID,
-      empName: employeeDoc.data().empName || "Unknown",
+      empName: employeeDoc.exists ? employeeDoc.data().empName : "Unknown",
       timestamp: now.toISOString(),
-      date: today, // **Ensure correct date format**
-      quarter: `Q${Math.ceil((now.getMonth() + 1) / 3)}-${now.getFullYear()}`,
+      date: today,
     };
 
-    await db.collection("attendance").add(attendanceEntry);
+    // ✅ Add Attendance to the Firestore
+    await attendanceRef.add(attendanceEntry);
 
     res.json({
       message: "Attendance marked successfully",
