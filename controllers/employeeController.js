@@ -47,7 +47,7 @@ exports.getEmployee = async (req, res) => {
   }
 };
 
-// ✅ Fetch Attendance Records for Employee (Correct Placement)
+//Fetch Attendance Records for Employee (Correct Placement)
 exports.getAttendance = async (req, res) => {
   try {
     const { empID } = req.query;
@@ -55,25 +55,55 @@ exports.getAttendance = async (req, res) => {
       return res.status(400).json({ error: "Employee ID is required" });
     }
 
+    const today = new Date();
+    const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
+    const quarterStartDate = new Date(
+      today.getFullYear(),
+      quarterStartMonth,
+      1
+    );
+
+    // Fetch present attendance from Firestore
     const attendanceSnapshot = await db
       .collection("attendance")
       .where("empID", "==", empID)
-      .orderBy("timestamp", "desc")
+      .orderBy("date", "asc")
       .get();
 
-    if (attendanceSnapshot.empty) {
-      return res.json([]);
+    let presentRecords = attendanceSnapshot.docs.map((doc) => doc.data());
+    let presentDates = new Set(presentRecords.map((record) => record.date));
+
+    let attendanceRecords = [];
+    let totalAttendance = 0;
+    let dateTracker = new Date(quarterStartDate);
+
+    while (dateTracker <= today) {
+      let dateStr = dateTracker.toISOString().split("T")[0];
+      if (presentDates.has(dateStr)) {
+        let record = presentRecords.find((r) => r.date === dateStr);
+        attendanceRecords.push({
+          date: dateStr,
+          time: new Date(record.timestamp).toLocaleTimeString(),
+          status: "Present",
+        });
+        totalAttendance += 1;
+      } else {
+        attendanceRecords.push({
+          date: dateStr,
+          time: "--",
+          status: "Absent",
+        });
+      }
+      dateTracker.setDate(dateTracker.getDate() + 1);
     }
 
-    const records = attendanceSnapshot.docs.map((doc) => doc.data());
-
-    res.json(records);
+    res.json({ attendanceRecords, totalAttendance });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Mark Attendance in Firestore (Prevent Duplicate Entries)
+// Mark Attendance in Firestore (Prevent Duplicate Entries)
 exports.markAttendance = async (req, res) => {
   try {
     const { empID } = req.body;
