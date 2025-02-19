@@ -195,7 +195,6 @@ exports.markAttendance = async (req, res) => {
       .json({ error: "Internal Server Error", details: error.message });
   }
 };
-const db = require("../config/firebase");
 
 // ✅ Backdate Attendance API (Allow Multiple Selections)
 exports.backdateAttendance = async (req, res) => {
