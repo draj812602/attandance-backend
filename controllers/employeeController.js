@@ -195,6 +195,78 @@ exports.markAttendance = async (req, res) => {
       .json({ error: "Internal Server Error", details: error.message });
   }
 };
+const db = require("../config/firebase");
+
+// ✅ Backdate Attendance API (Allow Multiple Selections)
+exports.backdateAttendance = async (req, res) => {
+  try {
+    const { empID, dates } = req.body; // ✅ Accept multiple dates
+    if (!empID || !dates || !Array.isArray(dates) || dates.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Employee ID and valid dates are required" });
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const year = new Date().getFullYear();
+    const month = new Date().getMonth();
+
+    // ✅ Determine the start of the current quarter
+    let quarterStartMonth = Math.floor(month / 3) * 3;
+    const quarterStart = new Date(Date.UTC(year, quarterStartMonth, 1))
+      .toISOString()
+      .split("T")[0];
+
+    const employeeRef = db.collection("employees").doc(empID);
+    const employeeDoc = await employeeRef.get();
+
+    if (!employeeDoc.exists) {
+      return res
+        .status(404)
+        .json({ error: "Employee not found. Please register first." });
+    }
+
+    const attendanceRef = db.collection("attendance");
+    let addedDates = [];
+    let skippedDates = [];
+
+    for (let date of dates) {
+      if (date < quarterStart || date >= today) {
+        skippedDates.push(date); // ❌ Skip invalid dates
+        continue;
+      }
+
+      const existingRecord = await attendanceRef
+        .where("empID", "==", empID)
+        .where("date", "==", date)
+        .get();
+
+      if (!existingRecord.empty) {
+        skippedDates.push(date); // ❌ Skip if already marked
+        continue;
+      }
+
+      const attendanceEntry = {
+        empID,
+        empName: employeeDoc.data().empName || "Unknown",
+        timestamp: new Date().toISOString(),
+        date,
+      };
+
+      await attendanceRef.add(attendanceEntry);
+      addedDates.push(date); // ✅ Successfully added
+    }
+
+    res.json({
+      message: "Backdated attendance successfully updated.",
+      addedDates,
+      skippedDates,
+    });
+  } catch (error) {
+    console.error("Error updating backdated attendance:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 // ✅ Verify if IP is from Office Network
 exports.verifyOfficeIP = (req, res) => {
