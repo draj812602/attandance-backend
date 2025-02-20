@@ -98,7 +98,9 @@ exports.getAttendance = async (req, res) => {
         let record = presentRecords.find((r) => r.date === dateStr);
         attendanceRecords.push({
           date: dateStr,
-          time: new Date(record.timestamp).toLocaleTimeString(),
+          time: record.timestamp
+            ? new Date(record.timestamp).toLocaleTimeString()
+            : "--", // ✅ Fix applied
           status: "Present",
         });
       } else {
