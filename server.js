@@ -3,7 +3,17 @@ const cors = require("cors");
 const employeeRoutes = require("./routes/employeeRoutes");
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "chrome-extension://pkejkpdnaopobpljgkkomfkeiikblkoj",
+      "https://attandance-backend-r6cc.onrender.com",
+    ],
+    methods: "GET,POST,PUT,DELETE",
+    allowedHeaders: "Content-Type,Authorization",
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
