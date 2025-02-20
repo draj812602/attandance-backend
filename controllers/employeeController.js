@@ -131,13 +131,6 @@ exports.markAttendance = async (req, res) => {
         .json({ error: "Employee not found. Please register first." });
     }
 
-    const isOffice = await verifyOfficeIP(req);
-    if (!isOffice) {
-      return res
-        .status(403)
-        .json({ error: "You are not in the office. Attendance not marked." });
-    }
-
     const today = new Date().toISOString().split("T")[0];
     const attendanceRef = db.collection("attendance");
     const attendanceQuery = await attendanceRef
@@ -151,7 +144,7 @@ exports.markAttendance = async (req, res) => {
 
     await attendanceRef.add({
       empID,
-      empName: employeeDoc.data().empName,
+      empName: employeeDoc.data().empName, // Ensure empName is also stored
       timestamp: new Date().toISOString(),
       date: today,
     });
