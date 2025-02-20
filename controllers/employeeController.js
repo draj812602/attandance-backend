@@ -1,5 +1,13 @@
 const db = require("../config/firebase");
 
+// ✅ Function to Verify Office IP
+exports.verifyOfficeIP = (req, res) => {
+  const officePublicIPs = ["182.76.164.162"];
+  const userIP = req.query.ip;
+  const isOffice = officePublicIPs.includes(userIP);
+  res.json({ isOffice });
+};
+
 // ✅ Save Employee to Firestore
 exports.saveEmployee = async (req, res) => {
   try {
@@ -39,11 +47,10 @@ exports.getEmployee = async (req, res) => {
     const employeeRef = db.collection("employees").doc(empID);
     const employeeDoc = await employeeRef.get();
 
-    // ✅ If Employee Not Found, Return Prompt to Re-Register
     if (!employeeDoc.exists) {
-      return res.status(404).json({
-        error: "Employee not found. Please register again.",
-      });
+      return res
+        .status(404)
+        .json({ error: "Employee not found. Please register again." });
     }
 
     res.json(employeeDoc.data());
@@ -52,7 +59,7 @@ exports.getEmployee = async (req, res) => {
   }
 };
 
-// ✅ Fetch Attendance (Full Quarter) - Includes Present & Absent
+// ✅ Fetch Attendance (Full Quarter)
 exports.getAttendance = async (req, res) => {
   try {
     const { empID } = req.query;
@@ -60,33 +67,14 @@ exports.getAttendance = async (req, res) => {
       return res.status(400).json({ error: "Employee ID is required" });
     }
 
-    // console.log(`Fetching attendance for Employee ID: ${empID}`);
-
     const today = new Date();
-    today.setHours(23, 59, 59, 999); // ✅ Ensure today is correctly compared
+    today.setHours(23, 59, 59, 999);
 
     const year = today.getFullYear();
     const month = today.getMonth();
-
-    // ✅ Correctly determine the start of the current quarter
-    let quarterStartMonth;
-    if (month >= 0 && month <= 2) {
-      quarterStartMonth = 0; // Q1: January 1
-    } else if (month >= 3 && month <= 5) {
-      quarterStartMonth = 3; // Q2: April 1
-    } else if (month >= 6 && month <= 8) {
-      quarterStartMonth = 6; // Q3: July 1
-    } else {
-      quarterStartMonth = 9; // Q4: October 1
-    }
-
+    let quarterStartMonth = Math.floor(month / 3) * 3;
     const quarterStartDate = new Date(Date.UTC(year, quarterStartMonth, 1));
-    quarterStartDate.setUTCHours(0, 0, 0, 0); // ✅ Fix UTC mismatch
 
-    // console.log("Quarter Start Date:", quarterStartDate.toISOString());
-    // console.log("Today's Date (Fixed):", today.toISOString());
-
-    // ✅ Fetch attendance from Firestore (Only from quarter start to today)
     const attendanceSnapshot = await db
       .collection("attendance")
       .where("empID", "==", empID)
@@ -100,7 +88,6 @@ exports.getAttendance = async (req, res) => {
     let totalAttendance = presentRecords.length;
     let dateTracker = new Date(quarterStartDate);
 
-    // ✅ Fix: Ensure the loop **includes today's date**
     while (
       dateTracker.toISOString().split("T")[0] <=
       today.toISOString().split("T")[0]
@@ -115,27 +102,19 @@ exports.getAttendance = async (req, res) => {
           status: "Present",
         });
       } else {
-        attendanceRecords.push({
-          date: dateStr,
-          time: "--",
-          status: "Absent",
-        });
+        attendanceRecords.push({ date: dateStr, time: "--", status: "Absent" });
       }
 
-      // ✅ Move to the next day correctly
       dateTracker.setUTCDate(dateTracker.getUTCDate() + 1);
     }
 
     res.json({ attendanceRecords, totalAttendance });
   } catch (error) {
-    console.error("Error fetching attendance records:", error);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error", details: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Mark Attendance in Firestore (Prevent Duplicate Entries)
+// ✅ Mark Attendance
 exports.markAttendance = async (req, res) => {
   try {
     const { empID } = req.body;
@@ -146,25 +125,21 @@ exports.markAttendance = async (req, res) => {
     const employeeRef = db.collection("employees").doc(empID);
     const employeeDoc = await employeeRef.get();
 
-    // ✅ If Employee is Missing, Recreate the Employee Record
     if (!employeeDoc.exists) {
-      console.log(`Employee ID ${empID} not found. Creating new employee...`);
-
-      await employeeRef.set({
-        empID,
-        empName: "Unknown", // Later update from UI if needed
-        createdAt: new Date(),
-      });
-
-      console.log(`New employee record created for ${empID}.`);
+      return res
+        .status(404)
+        .json({ error: "Employee not found. Please register first." });
     }
 
-    const now = new Date();
-    const today = now.toISOString().split("T")[0];
+    const isOffice = await verifyOfficeIP(req);
+    if (!isOffice) {
+      return res
+        .status(403)
+        .json({ error: "You are not in the office. Attendance not marked." });
+    }
 
+    const today = new Date().toISOString().split("T")[0];
     const attendanceRef = db.collection("attendance");
-
-    // ✅ Check if Attendance Collection Exists (Firestore Automatically Creates It)
     const attendanceQuery = await attendanceRef
       .where("empID", "==", empID)
       .where("date", "==", today)
@@ -174,43 +149,32 @@ exports.markAttendance = async (req, res) => {
       return res.json({ message: "Attendance already marked for today" });
     }
 
-    const attendanceEntry = {
+    await attendanceRef.add({
       empID,
-      empName: employeeDoc.exists ? employeeDoc.data().empName : "Unknown",
-      timestamp: now.toISOString(),
+      empName: employeeDoc.data().empName,
+      timestamp: new Date().toISOString(),
       date: today,
-    };
-
-    // ✅ Add Attendance to the Firestore
-    await attendanceRef.add(attendanceEntry);
-
-    res.json({
-      message: "Attendance marked successfully",
-      data: attendanceEntry,
     });
+
+    res.json({ message: "Attendance marked successfully" });
   } catch (error) {
-    console.error("Error marking attendance:", error);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error", details: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Backdate Attendance API (Allow Multiple Selections)
+// ✅ Backdate Attendance
 exports.backdateAttendance = async (req, res) => {
   try {
-    const { empID, dates } = req.body; // ✅ Accept multiple dates
+    const { empID, dates } = req.body;
     if (!empID || !dates || !Array.isArray(dates) || dates.length === 0) {
       return res
         .status(400)
-        .json({ error: "Employee ID and valid dates are required" });
+        .json({ error: "Valid Employee ID and dates are required." });
     }
 
     const today = new Date().toISOString().split("T")[0];
     const year = new Date().getFullYear();
     const month = new Date().getMonth();
-
-    // ✅ Determine the start of the current quarter
     let quarterStartMonth = Math.floor(month / 3) * 3;
     const quarterStart = new Date(Date.UTC(year, quarterStartMonth, 1))
       .toISOString()
@@ -231,7 +195,7 @@ exports.backdateAttendance = async (req, res) => {
 
     for (let date of dates) {
       if (date < quarterStart || date >= today) {
-        skippedDates.push(date); // ❌ Skip invalid dates
+        skippedDates.push(date);
         continue;
       }
 
@@ -239,21 +203,18 @@ exports.backdateAttendance = async (req, res) => {
         .where("empID", "==", empID)
         .where("date", "==", date)
         .get();
-
       if (!existingRecord.empty) {
-        skippedDates.push(date); // ❌ Skip if already marked
+        skippedDates.push(date);
         continue;
       }
 
-      const attendanceEntry = {
+      await attendanceRef.add({
         empID,
         empName: employeeDoc.data().empName || "Unknown",
         timestamp: new Date().toISOString(),
         date,
-      };
-
-      await attendanceRef.add(attendanceEntry);
-      addedDates.push(date); // ✅ Successfully added
+      });
+      addedDates.push(date);
     }
 
     res.json({
@@ -262,15 +223,6 @@ exports.backdateAttendance = async (req, res) => {
       skippedDates,
     });
   } catch (error) {
-    console.error("Error updating backdated attendance:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
-};
-
-// ✅ Verify if IP is from Office Network
-exports.verifyOfficeIP = (req, res) => {
-  const officePublicIPs = ["182.76.164.162"];
-  const userIP = req.query.ip;
-  const isOffice = officePublicIPs.includes(userIP);
-  res.json({ isOffice });
 };

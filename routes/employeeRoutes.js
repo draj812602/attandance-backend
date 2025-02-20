@@ -1,20 +1,20 @@
 const express = require("express");
 const {
   saveEmployee,
-  getEmployee, // ✅ Fixed function mapping
+  getEmployee,
   markAttendance,
-  getAttendance, // ✅ Fixed function mapping
+  getAttendance,
   verifyOfficeIP,
   backdateAttendance,
-} = require("../controllers/employeeController");
+} = require("../controllers/employeeController"); // Ensure all functions exist
 
 const router = express.Router();
 
-router.post("/employee", saveEmployee);
-router.get("/employee", getEmployee); // ✅ Fetch employee details
-router.post("/attendance", markAttendance);
-router.get("/attendance", getAttendance); // ✅ Fetch attendance records
-router.post("/backdate-attendance", backdateAttendance);
 router.get("/verify-ip", verifyOfficeIP);
+router.post("/employee", saveEmployee);
+router.get("/employee", getEmployee);
+router.post("/attendance", markAttendance);
+router.get("/attendance", getAttendance);
+router.post("/backdate-attendance", backdateAttendance);
 
 module.exports = router;
