@@ -146,8 +146,8 @@ exports.markAttendance = async (req, res) => {
 
     await attendanceRef.add({
       empID,
-      empName: employeeDoc.data().empName || "Unknown",
-      timestamp: new Date().toISOString(), // ✅ Ensuring timestamp is always stored
+      empName: employeeDoc.data().empName, // Ensure empName is also stored
+      timestamp: new Date().toISOString(),
       date: today,
     });
 
@@ -206,7 +206,7 @@ exports.backdateAttendance = async (req, res) => {
       await attendanceRef.add({
         empID,
         empName: employeeDoc.data().empName || "Unknown",
-        timestamp: new Date(date).toISOString(), // ✅ Convert date to valid format
+        timestamp: new Date().toISOString(),
         date,
       });
       addedDates.push(date);
