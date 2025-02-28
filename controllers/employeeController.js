@@ -17,7 +17,7 @@ exports.saveEmployee = async (req, res) => {
         .status(400)
         .json({ error: "Employee ID and Name are required" });
     }
-    if (!verifyIP(ip)) {
+    if (!verifyOfficeIP(ip)) {
       return res
         .status(403)
         .json({ error: "Registration only allowed from office network" });
@@ -152,7 +152,7 @@ exports.markAttendance = async (req, res) => {
         .status(404)
         .json({ error: "Employee not found. Please register first." });
     }
-    if (!verifyIP(ip)) {
+    if (!verifyOfficeIP(ip)) {
       return res
         .status(403)
         .json({ error: "Attendance can only be marked from office network" });
