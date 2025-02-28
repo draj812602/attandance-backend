@@ -4,6 +4,7 @@ const OFFICE_IPS = ["183.76.164.162"];
 
 // ✅ Utility function to check if an IP is from the office
 const isOfficeIP = (ip) => OFFICE_IPS.includes(ip);
+console.log(isOfficeIP);
 
 // ✅ Function to Verify Office IP
 exports.verifyOfficeIP = (req, res) => {
@@ -22,7 +23,7 @@ exports.saveEmployee = async (req, res) => {
         .status(400)
         .json({ error: "Employee ID and Name are required" });
     }
-    if (!isOfficeIP(ip)) {
+    if (!isOfficeIP) {
       return res
         .status(403)
         .json({ error: "Registration only allowed from office network" });
@@ -157,7 +158,7 @@ exports.markAttendance = async (req, res) => {
         .status(404)
         .json({ error: "Employee not found. Please register first." });
     }
-    if (!isOfficeIP(ip)) {
+    if (!isOfficeIP) {
       return res
         .status(403)
         .json({ error: "Attendance can only be marked from office network" });
