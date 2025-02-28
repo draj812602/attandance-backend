@@ -23,19 +23,35 @@ exports.saveEmployee = async (req, res) => {
       (now.getMonth() + 1) / 3
     )}-${now.getFullYear()}`;
 
-    await db.collection("employees").doc(empID).set({
+    // ✅ Explicitly create the "employees" collection if it doesn't exist
+    const employeesRef = db.collection("employees");
+    const employeeDoc = await employeesRef.doc(empID).get();
+
+    if (!employeeDoc.exists) {
+      await employeesRef.doc(empID).set({
+        empID,
+        empName,
+        quarter,
+        createdAt: new Date(),
+      });
+    }
+
+    // ✅ Immediately mark attendance upon successful registration
+    await db.collection("attendance").add({
       empID,
       empName,
-      quarter,
-      createdAt: new Date(),
+      date: new Date().toISOString().split("T")[0], // Store only date part
+      timestamp: new Date().toISOString(),
     });
 
-    res.json({ message: "Employee details saved successfully" });
+    res.json({
+      message: "Employee registered and attendance marked successfully.",
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error saving employee:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 // ✅ Fetch Employee from Firestore
 exports.getEmployee = async (req, res) => {
   try {
@@ -135,25 +151,29 @@ exports.markAttendance = async (req, res) => {
 
     const today = new Date().toISOString().split("T")[0];
     const attendanceRef = db.collection("attendance");
-    const attendanceQuery = await attendanceRef
+
+    // ✅ Check if attendance is already marked for today
+    const existingAttendance = await attendanceRef
       .where("empID", "==", empID)
       .where("date", "==", today)
       .get();
 
-    if (!attendanceQuery.empty) {
-      return res.json({ message: "Attendance already marked for today" });
+    if (!existingAttendance.empty) {
+      return res.json({ message: "Attendance already marked for today." });
     }
 
+    // ✅ Mark attendance
     await attendanceRef.add({
       empID,
-      empName: employeeDoc.data().empName, // Ensure empName is also stored
+      empName: employeeDoc.data().empName || "Unknown",
       timestamp: new Date().toISOString(),
       date: today,
     });
 
-    res.json({ message: "Attendance marked successfully" });
+    res.json({ message: "Attendance marked successfully." });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error marking attendance:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
