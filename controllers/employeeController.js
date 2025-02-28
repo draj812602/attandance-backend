@@ -2,7 +2,7 @@ const db = require("../config/firebase");
 
 // ✅ Function to Verify Office IP
 exports.verifyOfficeIP = (req, res) => {
-  const officePublicIPs = ["182.76.164.162"];
+  const officePublicIPs = ["183.76.164.162"];
   const userIP = req.query.ip;
   const isOffice = officePublicIPs.includes(userIP);
   res.json({ isOffice });
