@@ -17,7 +17,11 @@ exports.saveEmployee = async (req, res) => {
         .status(400)
         .json({ error: "Employee ID and Name are required" });
     }
-
+    if (!verifyIP(ip)) {
+      return res
+        .status(403)
+        .json({ error: "Registration only allowed from office network" });
+    }
     const now = new Date();
     const quarter = `Q${Math.ceil(
       (now.getMonth() + 1) / 3
@@ -148,7 +152,11 @@ exports.markAttendance = async (req, res) => {
         .status(404)
         .json({ error: "Employee not found. Please register first." });
     }
-
+    if (!verifyIP(ip)) {
+      return res
+        .status(403)
+        .json({ error: "Attendance can only be marked from office network" });
+    }
     const today = new Date().toISOString().split("T")[0];
     const attendanceRef = db.collection("attendance");
 
