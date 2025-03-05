@@ -4,8 +4,7 @@ const OFFICE_IPS = ["182.76.164.162"]; // Statically store office IP
 
 // ✅ Utility function to check if an IP is from the office
 const isOfficeIP = (req) => {
-  const userIP = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
-  console.log(userIP);
+  const userIP = "182.76.164.162";
 
   return OFFICE_IPS.includes(userIP);
 };
@@ -114,6 +113,8 @@ exports.getAttendance = async (req, res) => {
 
 // ✅ Mark Attendance (Only If in Office)
 exports.markAttendance = async (req, res) => {
+  console.log("mark attendance", req);
+
   try {
     const { empID } = req.body;
     if (!empID) {
