@@ -1,6 +1,6 @@
 const db = require("../config/firebase");
 
-const OFFICE_IPS = ["183.76.164.162"]; // Statically store office IP
+const OFFICE_IPS = ["182.76.164.162"]; // Statically store office IP
 
 // ✅ Utility function to check if an IP is from the office
 const isOfficeIP = (req) => {
