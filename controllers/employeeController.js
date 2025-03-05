@@ -113,8 +113,6 @@ exports.getAttendance = async (req, res) => {
 
 // ✅ Mark Attendance (Only If in Office)
 exports.markAttendance = async (req, res) => {
-  console.log("mark attendance", req);
-
   try {
     const { empID } = req.body;
     if (!empID) {
