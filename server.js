@@ -3,17 +3,26 @@ const cors = require("cors");
 const employeeRoutes = require("./routes/employeeRoutes");
 
 const app = express();
+
 app.use(
   cors({
-    origin: [
-      "chrome-extension://pkejkpdnaopobpljgkkomfkeiikblkoj",
-      "https://attandance-backend-r6cc.onrender.com",
-    ],
+    origin: (origin, callback) => {
+      if (
+        !origin ||
+        origin.startsWith("chrome-extension://") ||
+        origin === "https://attandance-backend-r6cc.onrender.com"
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: "GET,POST,PUT,DELETE",
     allowedHeaders: "Content-Type,Authorization",
     credentials: true,
   })
 );
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
